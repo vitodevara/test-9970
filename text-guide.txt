@@ -1,0 +1,93 @@
+sudo apt update
+sudo apt upgrade -y
+
+https://github.com/vitodevara/test-9970.git
+
+# 1) Bangun topologi & simpan latensi
+python emu/graphml_to_mininet.py data/OS3E.graphml emu/os3e_topo.py
+sudo python emu/topo_runner.py --topo emu.os3e_topo --ctrl 127.0.0.1
+# di shell lain:
+python cpp_core/latency_probe.py > data/os3e_lat.npy
+
+# 2) Pramuat QoS
+python - <<'PY'
+import numpy as np, cpp_core.qws_loader as q
+np.save("data/qws.npy", list(q.load_qws().values()))
+PY
+
+# 3) Latih DQN
+python cpp_core/train_dqn.py
+
+# 4) GA & evaluasi
+python cpp_core/evaluate.py
+
+# Kembali ke direktori home Anda
+cd ~
+
+# Unduh ONOS (gunakan versi stabil terbaru, misalnya 2.7.0).
+# Kunjungi https://onosproject.org/download/ untuk versi terbaru jika 2.7.0 sudah usang.
+wget https://repo1.maven.org/maven2/org/onosproject/onos-releases/2.7.0/onos-2.7.0.tar.gz
+
+# Ekstrak file ONOS
+tar xzf onos-2.7.0.tar.gz
+
+# Atur variabel lingkungan ONOS_HOME dan tambahkan bin ke PATH
+echo 'export ONOS_HOME=~/onos-2.7.0' >> ~/.bashrc
+echo 'export PATH=$PATH:$ONOS_HOME/bin' >> ~/.bashrc
+
+# Muat ulang .bashrc untuk menerapkan perubahan
+source ~/.bashrc
+
+# Verifikasi instalasi ONOS
+# Anda seharusnya melihat output yang menunjukkan ONOS_HOME
+echo $ONOS_HOME
+
+# Untuk memulai ONOS (ini akan berjalan di latar belakang)
+onos-service start
+
+# Untuk memeriksa status ONOS
+onos-service status
+
+# Untuk terhubung ke CLI ONOS (setelah ONOS sepenuhnya berjalan)
+# Mungkin perlu beberapa saat agar ONOS siap. Jika gagal, coba lagi setelah beberapa detik.
+# onos localhost
+# Untuk keluar dari CLI, ketik 'exit'
+# Kembali ke direktori home Anda
+cd ~
+
+# Buat direktori proyek
+mkdir sdn_ai_placement
+cd sdn_ai_placement
+
+# Buat virtual environment Python
+python3 -m venv sdn_ai_env
+
+# Aktifkan virtual environment
+source sdn_ai_env/bin/activate
+
+# Instal pustaka Python yang diperlukan
+# networkx: Untuk memparsing topologi jaringan dan analisis graf
+# pandas: Untuk manipulasi data (misalnya, dataset QWS)
+# numpy: Untuk komputasi numerik
+# scikit-learn: Untuk utilitas ML umum (jika diperlukan)
+# tensorflow: Untuk Deep Reinforcement Learning (atau pytorch, pilih salah satu)
+# deap: Untuk Genetic Algorithm
+# matplotlib: Untuk visualisasi data
+pip install networkx pandas numpy scikit-learn tensorflow deap matplotlib
+
+# Verifikasi instalasi pustaka
+python -c "import networkx; print('networkx installed')"
+python -c "import tensorflow as tf; print('TensorFlow version:', tf.__version__)"
+python -c "import deap; print('DEAP version:', deap.__version__)"
+
+
+source ~/.bashrc # Pastikan variabel lingkungan termuat
+onos-service start
+onos-service status
+
+cd ~/sdn_ai_placement
+source sdn_ai_env/bin/activate
+
+python basic_mininet_onos.py
+
+mkdir -p ~/topology-zoo/gml
